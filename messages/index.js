@@ -128,10 +128,10 @@ var intents = new builder.IntentDialog({ recognizers: [recognizer] })
        
     },
     function (session, results) {
-        offUrl= results.response;
+        onUrl= results.response;
         session.userData.onUrl =onUrl;
          var request = require('request');
-            request(offUrl, function (error, response, body) {
+            request(onUrl, function (error, response, body) {
                 
                 if( response.statusCode==200)
                 {
