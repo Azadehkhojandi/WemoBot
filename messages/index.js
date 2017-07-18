@@ -25,17 +25,32 @@ bot.localePath(path.join(__dirname, './locale'));
 var luisAppId = process.env.LuisAppId;
 var luisAPIKey = process.env.LuisAPIKey;
 var luisAPIHostName = process.env.LuisAPIHostName || 'westus.api.cognitive.microsoft.com';
-var makerKey= process.env.IftttMakerKey;
+//var makerKey= process.env.IftttMakerKey;
 
 const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v1/application?id=' + luisAppId + '&subscription-key=' + luisAPIKey;
 
 
-var onUrl='https://maker.ifttt.com/trigger/Turnon_WemoSwitch/with/key/'+makerKey;
+var onUrl='';
+var offUrl='';
 
-var offUrl='https://maker.ifttt.com/trigger/Turnoff_WemoSwitch/with/key/'+makerKey;
+bot.dialog('settings', [
+    function (session) {
+        builder.Prompts.text(session, 'Hello... What\'s the on Url?');
+    },
+    function (session, results) {
+        onUrl=results.response;
+        session.userData.onUrl = onUrl;
+        builder.Prompts.text(session, 'What\'s the off Url?');
+    },
+    function (session, results) {
+        offUrl= results.response;
+        session.userData.offUrl =offUrl;
+        session.endDialog('Got it... ' + 'you are all set');
+    }
+]);
 
 
-
+ 
 // Main dialog with LUIS
 var recognizer = new builder.LuisRecognizer(LuisModelUrl);
 
@@ -44,12 +59,100 @@ var intents = new builder.IntentDialog({ recognizers: [recognizer] })
 .matches('<yourIntent>')... See details at http://docs.botframework.com/builder/node/guides/understanding-natural-language/
 */
 .matches('turn off', [
+    function (session) {
+       if(offUrl!=='')
+       {
+            var request = require('request');
+            request(offUrl, function (error, response, body) {
+                
+                if( response.statusCode==200)
+                {
+                    session.say("It's off now", "It's off now", null)
+                    .endDialog();
+                }
+                else
+                {
+                    session.send('something went wrong'); 
+                }
+            
+            });
+        }
+       else
+       {
+        builder.Prompts.text(session, 'What\'s the off Url?');
+       }
+       
+    },
+    function (session, results) {
+        offUrl= results.response;
+        session.userData.offUrl =offUrl;
+         var request = require('request');
+            request(offUrl, function (error, response, body) {
+                
+                if( response.statusCode==200)
+                {
+                    session.say("It's off now", "It's off now", null)
+                    .endDialog();
+                }
+                else
+                {
+                    session.send('something went wrong'); 
+                }
+            
+            });
+    }
+])
+.matches('turn on', [
+    function (session) {
+       if(onUrl!=='')
+       {
+            var request = require('request');
+            request(onUrl, function (error, response, body) {
+                
+                if( response.statusCode==200)
+                {
+                    session.say("It's on now", "It's on now", null)
+                    .endDialog();
+                }
+                else
+                {
+                    session.send('something went wrong'); 
+                }
+            
+            });
+        }
+       else
+       {
+        builder.Prompts.text(session, 'What\'s the on Url?');
+       }
+       
+    },
+    function (session, results) {
+        offUrl= results.response;
+        session.userData.onUrl =onUrl;
+         var request = require('request');
+            request(offUrl, function (error, response, body) {
+                
+                if( response.statusCode==200)
+                {
+                    session.say("It's on now", "It's on now", null)
+                    .endDialog();
+                }
+                else
+                {
+                    session.send('something went wrong'); 
+                }
+            
+            });
+    }
+])
+.matches('turn off old', [
         (session) => {
             
             //todo refactor - extract to method
             
             var request = require('request');
-            request(offUrl, function (error, response, body) {
+            request(onUrl, function (error, response, body) {
             
               if( response.statusCode==200)
               {
@@ -67,7 +170,7 @@ var intents = new builder.IntentDialog({ recognizers: [recognizer] })
         }
     ])
 
-.matches('turn on', [
+.matches('turn on old', [
 
   (session) => {
             
@@ -96,6 +199,7 @@ var intents = new builder.IntentDialog({ recognizers: [recognizer] })
 });
 
 bot.dialog('/', intents);    
+
 
 if (useEmulator) {
     var restify = require('restify');
