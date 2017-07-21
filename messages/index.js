@@ -8,7 +8,7 @@ https://aka.ms/abs-node-luis
 var builder = require("botbuilder");
 var botbuilder_azure = require("botbuilder-azure");
 var path = require('path');
-
+var request = require('request');
 var useEmulator = (process.env.NODE_ENV == 'development');
 
 var connector = useEmulator ? new builder.ChatConnector() : new botbuilder_azure.BotServiceConnector({
@@ -30,184 +30,109 @@ var luisAPIHostName = process.env.LuisAPIHostName || 'westus.api.cognitive.micro
 const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v1/application?id=' + luisAppId + '&subscription-key=' + luisAPIKey;
 
 
-var onUrl='';
-var offUrl='';
+var onUrl = '';
+var offUrl = '';
 
-bot.dialog('settings', [
-    function (session) {
-        builder.Prompts.text(session, 'Hello... What\'s the on Url?');
-    },
-    function (session, results) {
-        onUrl=results.response;
-        session.userData.onUrl = onUrl;
-        builder.Prompts.text(session, 'What\'s the off Url?');
-    },
-    function (session, results) {
-        offUrl= results.response;
-        session.userData.offUrl =offUrl;
-        session.endDialog('Got it... ' + 'you are all set');
-    }
-]);
+function requestSwitch(url, successCallback, errorCallbak) {
+    console.log("requestSwitch");
+    request(url, function (error, response, body) {
+        if (response.statusCode == 200) {
+            successCallback();
+        }
+        else {
+            errorCallbak();
+        }
 
+    });
 
- 
+};
+
 // Main dialog with LUIS
 var recognizer = new builder.LuisRecognizer(LuisModelUrl);
 
 var intents = new builder.IntentDialog({ recognizers: [recognizer] })
-/*
-.matches('<yourIntent>')... See details at http://docs.botframework.com/builder/node/guides/understanding-natural-language/
-*/
-.matches('turn off', [
-    function (session) {
-       if(offUrl!=='')
-       {
-            var request = require('request');
-            request(offUrl, function (error, response, body) {
-                
-                if( response.statusCode==200)
-                {
-                    session.say("It's off now", "It's off now", null)
-                    .endDialog();
-                }
-                else
-                {
-                    session.send('something went wrong'); 
-                }
-            
-            });
-        }
-       else
-       {
-        builder.Prompts.text(session, 'What\'s the off Url?');
-       }
-       
-    },
-    function (session, results) {
-        offUrl= results.response;
-        session.userData.offUrl =offUrl;
-         var request = require('request');
-            request(offUrl, function (error, response, body) {
-                
-                if( response.statusCode==200)
-                {
-                    session.say("It's off now", "It's off now", null)
-                    .endDialog();
-                }
-                else
-                {
-                    session.send('something went wrong'); 
-                }
-            
-            });
-    }
-])
-.matches('turn on', [
-    function (session) {
-       if(onUrl!=='')
-       {
-            var request = require('request');
-            request(onUrl, function (error, response, body) {
-                
-                if( response.statusCode==200)
-                {
-                    session.say("It's on now", "It's on now", null)
-                    .endDialog();
-                }
-                else
-                {
-                    session.send('something went wrong'); 
-                }
-            
-            });
-        }
-       else
-       {
-        builder.Prompts.text(session, 'What\'s the on Url?');
-       }
-       
-    },
-    function (session, results) {
-        onUrl= results.response;
-        session.userData.onUrl =onUrl;
-         var request = require('request');
-            request(onUrl, function (error, response, body) {
-                
-                if( response.statusCode==200)
-                {
-                    session.say("It's on now", "It's on now", null)
-                    .endDialog();
-                }
-                else
-                {
-                    session.send('something went wrong'); 
-                }
-            
-            });
-    }
-])
-.matches('turn off old', [
-        (session) => {
-            
-            //todo refactor - extract to method
-            
-            var request = require('request');
-            request(onUrl, function (error, response, body) {
-            
-              if( response.statusCode==200)
-              {
-                  session.say("It's off now", "It's off now", null)
-                  .endDialog();
-              }
-              else
-              {
-                    session.send('something went wrong'); 
-              }
-              
-            });
+    /*
+    .matches('<yourIntent>')... See details at http://docs.botframework.com/builder/node/guides/understanding-natural-language/
+    */
+    .matches('turn off', [
 
-            
+        function (session) {
+
+            offUrl = session.userData.offUrl;
+
+            if (offUrl !== undefined && offUrl !== null && offUrl !== '') {
+                requestSwitch(offUrl,
+                    () => {
+                        session.say("It's off now", "It's off now", null).endDialog();
+                    },
+                    () => {
+                        session.say("something went wrong", "something went wrong", null).endDialog();
+                    });
+
+            }
+            else {
+                builder.Prompts.text(session, 'What\'s the off Url?');
+            }
+
+        },
+        function (session, results) {
+            offUrl = results.response;
+            session.userData.offUrl = offUrl;
+            requestSwitch(offUrl,
+                () => {
+                    session.say("It's off now", "It's off now", null).endDialog();
+                },
+                () => {
+                    session.say("something went wrong", "something went wrong", null).endDialog();
+                });
         }
     ])
+    .matches('turn on', [
+        function (session) {
 
-.matches('turn on old', [
+            onUrl = session.userData.onUrl;
 
-  (session) => {
-            
-            //todo refactor - extract to method
-            
-            var request = require('request');
-            request(onUrl, function (error, response, body) {
-            
-              if( response.statusCode==200)
-              {
-                   session.send("It's on now").endDialog();
-              }
-              else
-              {
-                    session.send('something went wrong'); 
-              }
-              
-            });
+            if (onUrl !== undefined && onUrl !== null && onUrl !== '') {
+                requestSwitch(onUrl,
+                    () => {
+                        session.say("It's on now", "It's on now", null).endDialog();
+                    },
+                    () => {
+                        session.say("something went wrong", "something went wrong", null).endDialog();
+                    });
 
-            
+            }
+            else {
+                builder.Prompts.text(session, 'What\'s the on Url?');
+            }
+
+        },
+        function (session, results) {
+            onUrl = results.response;
+            session.userData.onUrl = onUrl;
+            requestSwitch(onUrl,
+                () => {
+                    session.say("It's on now", "It's on now", null).endDialog();
+                },
+                () => {
+                    session.say("something went wrong", "something went wrong", null).endDialog();
+                });
         }
-       
     ])
-.onDefault((session) => {
-    session.send('Sorry, I did not understand \'%s\'.', session.message.text);
-});
+    .onDefault((session) => {
+        session.send('Sorry, I did not understand \'%s\'.', session.message.text);
+    });
 
-bot.dialog('/', intents);    
+bot.dialog('/', intents);
 
 
 if (useEmulator) {
     var restify = require('restify');
     var server = restify.createServer();
-    server.listen(3978, function() {
+    server.listen(3978, function () {
         console.log('test bot endpont at http://localhost:3978/api/messages');
     });
-    server.post('/api/messages', connector.listen());    
+    server.post('/api/messages', connector.listen());
 } else {
     module.exports = { default: connector.listen() }
 }
